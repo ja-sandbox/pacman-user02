@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Pac-Man</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="pacman-canvas.css">
+
+    <!-- SEO Stuff -->
+    <meta name="description" content="Play Pac-Man for free on your desktop or mobile. This whole game is open source and was created in HTML5." />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="content-language" content="de">
+    <meta name="language" content="de">
+    <meta name="page-topic" content="Games/Arcade" />
+
+    <meta content="National" name="distribution" />
+
+    <!-- Facebook Open Graph Information -->
+    <meta property="og:image" content="img/Icon-200x200.png"/>
+    <meta property="og:title" content="Pac-Man" />
+    <meta property="og:description" content="Play Pac-Man for free on your desktop or mobile. This whole game is open source and was created in HTML5." />
+    <meta property="og:site_name" content="Pac-Man" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- site icons -->
+    <link rel="shortcut icon" href="img/Icon-130x130.png" />
+    <link rel="apple-touch-icon" href="img/Icon-130x130.png" />
+
+    <meta property="og:image" content="img/Icon-130x130.png"/>
+
+    <!-- AppsFuel verification code -->
+    <meta name="appsfuel_code" content="83d3cedc1050a5c"/>
+
+    <!-- Mobile Viewport -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
+
+    <!-- Apple Mobile Web Capability -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+
+    <!-- Script -->
+    <script src="js/jquery-3.4.1.min.js" type="text/javascript"></script>
+    <script src="js/jquery.hammer.min.js" type="text/javascript"></script>
+    <script src="js/movement.js" type="text/javascript"></script>
+
+</head>
+
+<body>
+
+<div class="container">
+<div class="main">
+
+
+<!-- Display this message if Javascript is disabled -->
+<noscript>
+<h2>Enable Javascript!</h2>
+<p>This HTML 5 app requires Javascript to run. Please check that Javascript is enabled in your browser.</p>
+</noscript>
+
+<!-- Highscore -->
+<div class="content" id="highscore-content">
+    <div class="button" id="back">&lt; back</div>
+    <div>
+        <h1>High score</h1>
+        <div class="table-controls">
+            <label><input type="checkbox" id="highscore-show-simulated" checked> Show simulated users</label>
+        </div>
+        <div class="table-scroll">
+            <table id="highscore-table">
+                <thead>
+                <tr>
+                    <th id="rank">Rank</th>
+                    <th id="playername">Name</th>
+                    <th id="cloudprovider">Cloud</th>
+                    <th id="zone">Zone</th>
+                    <th id="host">Host</th>
+                    <th id="score">Score</th>
+                </tr>
+                </thead>
+                <tbody>
+                </tbody>
+
+            </table>
+        </div>
+        <div class="table-pagination" id="highscore-pagination">
+            <button type="button" class="button" data-page-action="previous">Previous</button>
+            <span class="page-label"></span>
+            <button type="button" class="button" data-page-action="next">Next</button>
+        </div>
+    </div>
+</div>
+
+<!-- Live Stats -->
+<div class="content" id="livestats-content">
+    <div class="button" id="back">&lt; back</div>
+    <div>
+        <h1>Live Stats</h1>
+        <div class="table-controls">
+            <label><input type="checkbox" id="livestats-show-simulated" checked> Show simulated users</label>
+        </div>
+        <div class="table-scroll">
+            <table id="livestats-table">
+                <thead>
+                <tr>
+                    <th id="userid">ID</th>
+                    <th id="playername">Name</th>
+                    <th id="cloudprovider">Cloud</th>
+                    <th id="zone">Zone</th>
+                    <th id="host">Host</th>
+                    <th id="score">Score</th>
+                    <th id="level">Level</th>
+                    <th id="lives">Lives</th>
+                    <th id="elapsedtime">ET</th>
+                    <th id="txncount">TXN Count</th>
+                </tr>
+                </thead>
+                <tbody>
+                </tbody>
+
+            </table>
+        </div>
+        <div class="table-pagination" id="livestats-pagination">
+            <button type="button" class="button" data-page-action="previous">Previous</button>
+            <span class="page-label"></span>
+            <button type="button" class="button" data-page-action="next">Next</button>
+        </div>
+    </div>
+</div>
+
+<!-- INSTRUCTIONS -->
+<div class="content" id="instructions-content">
+    <div class="button" id="back">&lt; back</div>
+    <div>
+        <h1>Instructions</h1>
+        <div class="nomobile">
+            <h2>Controls</h2>
+            <p>Use your arrow keys or [W,A,S,D] keys to navigate pacman.</p>
+            <p>To pause / resume the game press [SPACE] or [ESC] or just click into the game area.</p>
+        </div>
+        <div class="mobile">
+            <h2>Controls</h2>
+            <p>Use swipe gestures to navigate pacman.</p>
+            <p>Alternatively use the Arrow Buttons underneath the game area to navigate pacman.</p>
+            <p>To pause / resume the game, touch the game area once.</p>
+        </div>
+
+        <div>
+            <h2>Ghosts</h2>
+            <p>Ghosts are creatures that hunt pacman and will kill him if they catch him.</p>
+            <p>Each ghost has its own target in chase mode and a corner target in scatter mode.</p>
+            <h3>Inky<img src="img/inky.svg" class="pull-right"></h3>
+            Inky leaves the ghost house after 30 pills from level 3 onward. His scatter target is the bottom right corner.
+            <h3>Blinky <img src="img/blinky.svg" class="pull-right"></h3>
+            Blinky leaves the ghost house first. In chase mode he targets Pac-Man directly; his scatter target is the upper right corner.
+            <h3>Pinky<img src="img/pinky.svg" class="pull-right"></h3>
+            In chase mode Pinky aims four fields ahead and four fields to Pac-Man's left. Her scatter target is the upper left corner.
+            <h3>Clyde<img src="img/clyde.svg" class="pull-right"></h3>
+            Clyde waits until about two-thirds of the pills are eaten in the first three levels, then leaves the ghost house. His scatter target is the bottom left corner.
+        </div>
+
+        <div>
+            <h2>Ghost moods</h2>
+            The ghosts have two different moods that change the way they act during the game.
+            <h3>Scatter mood</h3>
+            <p>This is the default mood. Ghosts head toward their corner targets while the walls are blue.</p>
+            <img id="scatter-instructions-image" src="img/instructions/instructions_scatter.svg" alt="Pac-Man ghosts in scatter mode">
+            <h3>Chase mood</h3>
+            <p>From level 2 onward, ghosts switch between scatter and chase over time. In chase mode they pursue Pac-Man using their individual targets, and the walls turn red.</p>
+            <img id="chase-instructions-image" src="img/instructions/instructions_chase.svg" alt="Pac-Man ghosts in chase mode">
+        </div>
+
+        <div>
+            <h2>Items</h2>
+            <h3>Pills</h3>
+            <p>The goal of every level is, to eat all the white pills without getting catched by the ghosts. One pill results in 10 points.</p>
+            <h3>Powerpills</h3>
+            <p id="powerpill-instructions">In every level there are 4 powerpills, which are a bit bigger than the regular ones. If Pac-Man eats those, he will get strong enough to eat the ghosts. You can see this indicated by the ghosts turning blue. One powerpill results in 50 points.</p>
+            <img id="powerpill-instructions-image" src="img/instructions/instructions_powerpill.svg" alt="Pac-Man powerpill effect">
+            <p id="ghost-instructions">Eating a ghost results in 100 points. The soul of the ghost will return to the ghost house before starting to chase Pac-Man again.</p>
+        </div>
+
+    </div>
+</div>
+
+<!-- Settings -->
+<div class="content" id="settings-content">
+    <div class="button" id="back">&lt; back</div>
+    <div>
+        <h1>Settings</h1>
+        <p>The server is currently configured with a maximum level of
+           <strong><span id="server-max-level">…</span></strong>.
+           You can override this locally to play more or fewer levels, but
+           the server still validates high score submissions against its own
+           limit and will reject scores that exceed it.</p>
+        <p id="settings-locked-notice" style="display:none; color:#ffcc00;">
+           <strong>This server does not allow client config changes.</strong>
+           Settings are read-only.
+        </p>
+        <form id="settings-form" onsubmit="return false;">
+            <fieldset>
+                <legend>Gameplay <span class="settings-badge" id="max-level-lock-badge">Server controlled</span></legend>
+                <label>
+                    <input class="server-config-control" type="radio" name="maxLevelMode" value="server" checked>
+                    Use server default
+                </label><br>
+                <label>
+                    <input class="server-config-control" type="radio" name="maxLevelMode" value="custom">
+                    Custom:
+                    <input class="server-config-control" type="number" id="maxLevelCustom" min="1" max="999" value="10">
+                </label><br>
+                <label>
+                    <input class="server-config-control" type="radio" name="maxLevelMode" value="unlimited">
+                    Unlimited
+                </label>
+            </fieldset>
+            <fieldset>
+                <legend>Theme <span class="settings-badge" id="ebee-mode-lock-badge">Server controlled</span></legend>
+                <p id="ebee-mode-locked-notice" style="display:none; color:#ffcc00;">
+                   This server controls eBee mode.
+                </p>
+                <label>
+                    <input type="checkbox" id="ebeeMode">
+                    eBee mode
+                </label>
+                <div class="theme-preview" aria-hidden="true">
+                    <div class="preview-ebee"><span></span></div>
+                    <div class="preview-flower"><span></span></div>
+                    <img src="img/cilium-light.svg" alt="">
+                    <img src="img/kubernetes.svg" alt="">
+                </div>
+            </fieldset>
+            <fieldset>
+                <legend>Server Config</legend>
+                <pre id="server-config-json">Loading…</pre>
+            </fieldset>
+            <p>
+                <span class="button" id="settings-save">Save</span>
+                <span class="button" id="settings-reset">Reset</span>
+            </p>
+            <p id="settings-status"></p>
+        </form>
+    </div>
+</div>
+
+<!-- Info -->
+<div class="content" id="info-content">
+    <div class="button" id="back">&lt; back</div>
+    <div>
+        <h1>Info</h1>
+        <p>Current Version: Kubernetes-ready refresh</p>
+        <img src="img/8bit-ctf-bee.png" alt="8-bit eBee">
+        <p>Pac-Man is open source, originally written by <a href="http://platzh1rsch.ch">platzh1rsch</a> as <a target="_blank" href="https://github.com/platzhersh/pacman-canvas">platzhersh/pacman-canvas</a>.</p>
+        <p>The original Node.js app was later created by <a href="http://ivanfont.com">Ivan Font</a> at <a target="_blank" href="https://github.com/font/pacman">font/pacman</a>.</p>
+        <p>This build of the app comes from <a target="_blank" href="https://github.com/saintdle/pacman">saintdle/pacman</a>.</p>
+        <p id="kubernetes-usage-info" style="display: none;">Lightweight Kubernetes examples ship in this repo under <code>k8s/examples/</code>. An extended deployment with persistent storage and Cilium demos lives at <a target="_blank" href="https://github.com/saintdle/pacman-for-k8s">saintdle/pacman-for-k8s</a>.</p>
+        <p>This version updates the app for modern Node.js, containers, Kubernetes config, score validation, and eBee mode.</p>
+        <p>
+    </div>
+</div>
+
+
+
+<!-- main game content -->
+<div class="content" id="game-content">
+
+    <!-- main game content -->
+    <div class="game wrapper">
+
+        <div class="cloudprovider">Cloud: </div>
+        <div class="zone">Zone: </div>
+        <div class="host">Host: </div>
+        <div class="time">Time: </div>
+        <div class="level">Level: </div>
+        <div class="score">Score: </div>
+        <div class="lives">Lives: </div>
+
+        <div class="controlSound">
+            <img src="img/audio-icon-mute.png" id="mute">
+        </div>
+        <!-- canvas is splitted into 18x13 fields -->
+        <div id="canvas-container">
+            <div id="canvas-overlay-container">
+                <div id="canvas-overlay-content">
+                    <div id="title">Pac-Man</div>
+                    <div><p id="text">Click to Play</p></div>
+                </div>
+            </div>
+            <canvas id="myCanvas" width="540" height="390">
+            <p>Canvas not supported</p>
+            </canvas>
+        </div>
+
+        <div class="controls" id="game-buttons">
+        <!-- Will be moved to Instructions
+        <p class="nomobile">Use W-A-S-D keys to navigate Pac-Man</p>
+        -->
+
+            <!-- OLD Buttons -->
+            <div>
+                <span id="up" class="controlButton">&uarr;</span>
+            </div>
+            <div>
+                <span id="left" class="controlButton">&larr;</span>
+                <span id="down" class="controlButton">&darr;</span>
+                <span id="right" class="controlButton">&rarr;</span>
+            </div>
+
+        </div>
+        <!-- inGame Controls End -->
+
+        <!-- Game Menu -->
+        <div class="controls" id="menu-buttons">
+            <ul>
+                <li class="button" id="newGame">New Game</li>
+                <li class="button" id="restartLevel">Restart Level</li>
+                <li class="button" id="highscore">High Score</li>
+                <li class="button" id="livestats">Live Stats</li>
+                <li class="button" id="instructions">Instructions</li>
+                <li class="button" id="settings">Settings</li>
+                <li class="button" id="info">Info</li>
+            </ul>
+            <p class="keyboard-hints nomobile">Arrows/WASD move | Space pauses | R restarts level | N starts over | M toggles sound</p>
+
+        </div>
+        <!-- Game Menu End -->
+
+    </div>
+
+    <div class="description nomobile">
+        <p>This whole thing was written in HTML5, CSS3 and Javascript (using small bits of jquery). For the basics I was following the <a href="http://devhammer.net/blog/exploring-html5-canvas-part-1---introduction" target="_blank">"Exploring HTML5 Canvas"</a> Tutorials (Part 1 - 6) by Devhammer. Thanks for the great Tutorial!</a>
+        <p>For some other stuff, like how to write objectorientated javascript I was following the tutorials over at <a href="http://www.codecademy.com/" target="_blank">http://www.codecademy.com/</a>, which is a really great site to learn Javascript and also other languages.</a>
+
+        <span id="audio">
+            <audio id="theme" preload="auto">
+                <source src="wav/theme.wav" type="audio/wav">
+                <source src="mp3/theme.mp3" type="audio/mpeg">
+            </audio>
+            <audio id="waka" preload="auto">
+                <source src="wav/waka.wav" type="audio/wav">
+                <source src="mp3/waka.mp3" type="audio/mpeg">
+            </audio>
+            <audio id="die" preload="auto">
+                <source src="wav/die.wav" type="audio/wav">
+                <source src="mp3/die.mp3" type="audio/mpeg">
+            </audio>
+            <audio id="powerpill" preload="auto">
+                <source src="wav/powerpill.wav" type="audio/wav">
+                <source src="mp3/powerpill.mp3" type="audio/mpeg">
+            </audio>
+        </span>
+
+
+    </div>
+
+</div>
+</div>
+</div>
+
+    <script src="pacman-canvas.js" type="text/javascript"></script>
+
+
+</body>
+</html>

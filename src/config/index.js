@@ -1,0 +1,174 @@
+import 'dotenv/config';
+import { isIP } from 'node:net';
+import { z } from 'zod';
+
+const boolish = z
+  .union([z.string(), z.boolean()])
+  .transform((v) => (typeof v === 'boolean' ? v : ['1', 'true', 'yes', 'on'].includes(v.toLowerCase())));
+
+const EXPRESS_PROXY_RANGES = ['loopback', 'linklocal', 'uniquelocal'];
+
+function validProxySubnet(value) {
+  if (EXPRESS_PROXY_RANGES.includes(value.toLowerCase())) return true;
+
+  const [address, prefix, ...extra] = value.split('/');
+  const addressFamily = isIP(address);
+  if (addressFamily === 0 || extra.length > 0) return false;
+  if (prefix === undefined) return true;
+  if (!/^\d+$/.test(prefix)) return false;
+
+  const bits = Number(prefix);
+  return bits <= (addressFamily === 4 ? 32 : 128);
+}
+
+const trustProxy = z.string().default('false').transform((value, ctx) => {
+  const normalized = value.trim();
+  if (normalized.toLowerCase() === 'false') return false;
+  if (/^\d+$/.test(normalized)) {
+    const hops = Number(normalized);
+    if (Number.isSafeInteger(hops)) return hops;
+  } else {
+    const subnets = normalized.split(',').map((subnet) => {
+      const trimmed = subnet.trim();
+      return EXPRESS_PROXY_RANGES.includes(trimmed.toLowerCase()) ? trimmed.toLowerCase() : trimmed;
+    });
+    if (subnets.length > 0 && subnets.every((subnet) => subnet && validProxySubnet(subnet))) return subnets;
+  }
+
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: 'TRUST_PROXY must be false, an integer hop count, or a comma-separated proxy address list',
+  });
+  return z.NEVER;
+});
+
+const schema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  PORT: z.coerce.number().int().positive().default(8080),
+  GRPC_PORT: z.coerce.number().int().positive().default(9090),
+  HOST: z.string().default('0.0.0.0'),
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+  DB_TYPE: z.enum(['memory', 'mongo', 'postgres']).default('memory'),
+  // Keep the in-memory demo convenient, but fail fast for production-like
+  // database deployments unless degraded startup is explicitly requested.
+  FAIL_FAST_ON_DB_CONNECT: boolish.optional(),
+
+  // Demo/runtime metadata. APP_ROLE lets one image run separate Kubernetes
+  // workloads for east-west, Gateway API, and Tetragon demos.
+  APP_ROLE: z.enum(['web', 'score', 'user', 'config', 'topology', 'incident', 'grpc']).default('web'),
+  APP_VERSION: z.string().default('dev'),
+  APP_VARIANT: z.string().default('stable'),
+  APP_COLOR: z.string().default('#ffcc00'),
+  COMMIT_SHA: z.string().default('unknown'),
+  BUILD_DATE: z.string().default('unknown'),
+  SCORE_SERVICE_URL: z.string().url().optional(),
+  USER_SERVICE_URL: z.string().url().optional(),
+  CONFIG_SERVICE_URL: z.string().url().optional(),
+  TOPOLOGY_SERVICE_URL: z.string().url().optional(),
+  TRUST_PROXY: trustProxy,
+  READINESS_CHECK_UPSTREAMS: boolish.default(false),
+
+  // Lab-only demo controls. Fault/incident actions require both
+  // DEMO_SECURITY_MODE=true and the configured token header. The token has no
+  // default value: lab mode may only be enabled with an explicit secret.
+  DEMO_SECURITY_MODE: boolish.default(false),
+  DEMO_TOKEN_HEADER: z.string().default('x-demo-token'),
+  DEMO_TOKEN: z.string().default(''),
+  // Synthetic security probes stay off even when lab mode is on; each must be
+  // explicitly enabled.
+  DEMO_FILE_PROBE_ENABLED: boolish.default(false),
+  DEMO_EXEC_PROBE_ENABLED: boolish.default(false),
+
+  // Mongo
+  MONGO_SERVICE_HOST: z.string().default('localhost'),
+  MONGO_NAMESPACE_SERVICE_HOST: z.string().optional(),
+  MY_MONGO_PORT: z.coerce.number().int().positive().default(27017),
+  MONGO_DATABASE: z.string().default('pacman'),
+  MONGO_AUTH_USER: z.string().optional(),
+  MONGO_AUTH_PWD: z.string().optional(),
+  MONGO_REPLICA_SET: z.string().optional(),
+  MONGO_USE_SSL: boolish.default(false),
+  MONGO_VALIDATE_SSL: boolish.default(true),
+  MONGO_MAX_POOL_SIZE: z.coerce.number().int().positive().default(10),
+  MONGO_MIN_POOL_SIZE: z.coerce.number().int().nonnegative().default(0),
+  MONGO_CONNECT_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
+  MONGO_SERVER_SELECTION_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
+  MONGO_SOCKET_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
+  MONGO_WAIT_QUEUE_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
+
+  // Postgres
+  POSTGRES_HOST: z.string().default('localhost'),
+  POSTGRES_PORT: z.coerce.number().int().positive().default(5432),
+  POSTGRES_DB: z.string().default('pacman'),
+  POSTGRES_USER: z.string().default('pacman'),
+  POSTGRES_PASSWORD: z.string().default('pacman'),
+  POSTGRES_SSL: boolish.default(false),
+  POSTGRES_SSL_CA: z.string().optional(),
+  POSTGRES_SSL_REJECT_UNAUTHORIZED: boolish.default(true),
+  POSTGRES_POOL_MAX: z.coerce.number().int().positive().default(10),
+  POSTGRES_CONNECTION_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
+  POSTGRES_IDLE_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
+  POSTGRES_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
+  POSTGRES_QUERY_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
+
+  // Gameplay
+  // MAX_LEVEL caps how far Pac-Man can progress. Accepts a positive integer
+  // or the string "unlimited" to disable the cap entirely. The same value is
+  // surfaced to the client via GET /config and enforced on POST /highscores.
+  MAX_LEVEL: z
+    .union([z.string(), z.number()])
+    .default(10)
+    .transform((v, ctx) => {
+      if (typeof v === 'string' && v.trim().toLowerCase() === 'unlimited') {
+        return 'unlimited';
+      }
+      const n = Number(v);
+      if (!Number.isInteger(n) || n < 1) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'MAX_LEVEL must be a positive integer or "unlimited"' });
+        return z.NEVER;
+      }
+      return n;
+    }),
+
+  // When true (default) the in-game Settings page can override MAX_LEVEL
+  // locally via localStorage and POST /config returns 200. When false the
+  // server advertises a locked config: the client UI disables the form and
+  // POST /config returns 403. The server's MAX_LEVEL is still authoritative
+  // for highscore validation either way.
+  ALLOW_CLIENT_CONFIG_OVERRIDE: boolish.default(true),
+
+  // eBee mode is a visual theme: Pac-Man becomes eBee, ghosts become
+  // flowers, pills become Cilium logos, and lives become Kubernetes icons.
+  // EBEE_MODE is the server default. When ALLOW_CLIENT_EBEE_MODE_OVERRIDE
+  // is false, that server value is enforced and the Settings checkbox is
+  // read-only. When true, the browser may store a local override.
+  EBEE_MODE: boolish.default(false),
+  ALLOW_CLIENT_EBEE_MODE_OVERRIDE: boolish.default(true),
+
+  // Live stats are activity-based. A session disappears after this many
+  // seconds without a stats update.
+  LIVE_STATS_MAX_AGE_SECONDS: z.coerce.number().int().positive().default(300),
+  LIVE_STATS_PAGE_SIZE: z.coerce.number().int().positive().max(100).default(10),
+  SIMULATED_USERS_ENABLED: boolish.default(false),
+}).superRefine((value, ctx) => {
+  if (value.DEMO_SECURITY_MODE && value.DEMO_TOKEN.trim() === '') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['DEMO_TOKEN'],
+      message: 'DEMO_TOKEN must be set when DEMO_SECURITY_MODE is enabled',
+    });
+  }
+});
+
+const parsed = schema.safeParse(process.env);
+if (!parsed.success) {
+  console.error('Invalid environment configuration:', parsed.error.flatten().fieldErrors);
+  throw new Error('Invalid environment configuration');
+}
+
+export const config = {
+  ...parsed.data,
+  FAIL_FAST_ON_DB_CONNECT:
+    parsed.data.FAIL_FAST_ON_DB_CONNECT ?? (parsed.data.NODE_ENV === 'production' && parsed.data.DB_TYPE !== 'memory'),
+};
+export default config;
